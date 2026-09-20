@@ -1,0 +1,208 @@
+// Prisma schema file for UMA B2B Agricultural Marketplace
+// Configured by default for SQLite for instant, zero-dependency local execution.
+// To switch to PostgreSQL (e.g., Neon or Supabase):
+// 1. Change provider to "postgresql"
+// 2. Set DATABASE_URL="postgresql://user:password@host:5432/dbname" in .env
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===== CORE MODELS =====
+
+model Farmer {
+  id               Int       @id @default(autoincrement())
+  name             String
+  email            String    @unique
+  phone            String
+  barangay         String    // e.g. "La Paz", "Buenavista"
+  idType           String    // "Drivers License", "National ID", etc.
+  idNumber         String
+  verifiedAt       DateTime?
+  reliabilityScore Float     @default(5.0) // 1-5 scale
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  listings         Listing[]
+  ratings          Rating[]  @relation("RatingToFarmer")
+}
+
+model Listing {
+  id           Int       @id @default(autoincrement())
+  farmerId     Int
+  crop         String    // "Eggplant", "Tomatoes", "Squash", etc.
+  harvestDate  DateTime  // When farmer expects to harvest (Forward Order)
+  estimatedQty Float     // in kg
+  price        Float     // per kg in PHP (₱)
+  status       String    @default("active") // "active", "sold_out", "cancelled"
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  farmer       Farmer    @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  orderItems   OrderItem[] @relation("ListingToOrderItem")
+
+  @@index([farmerId])
+  @@index([harvestDate])
+}
+
+model Business {
+  id               Int       @id @default(autoincrement())
+  name             String
+  email            String    @unique
+  phone            String
+  address          String
+  barangay         String    // Delivery destination barangay
+  permitNo         String    // DTI/BIR registration or Mayor's Permit
+  permitType       String    // "DTI", "BIR", "Business Permit"
+  verifiedAt       DateTime?
+  reliabilityScore Float     @default(5.0)
+  creditTermsDays  Int       @default(0) // 0 = pay-on-delivery; 7+ = trade credit
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  orders           Order[]
+  ratings          Rating[]  @relation("RatingToBusiness")
+}
+
+model Order {
+  id            Int       @id @default(autoincrement())
+  businessId    Int
+  cutoffWindow  DateTime  // Deadline for order fulfillment
+  status        String    @default("pending") // pending, confirmed, harvested, picked_up, delivered, disputed, completed
+  paymentStatus String    @default("unpaid") // unpaid, paid, refunded
+  totalValue    Float     @default(0)
+  deliveryFee   Float     @default(150) // ₱150 standard default for MVP
+  deliveryType  String    @default("one-to-one") // "one-to-one" or "pooled"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  business      Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orderItems    OrderItem[]
+  delivery      Delivery?
+  dispute       Dispute?
+  ratings       Rating[]    @relation("RatingToOrder")
+
+  @@index([businessId])
+  @@index([status])
+}
+
+model OrderItem {
+  id           Int      @id @default(autoincrement())
+  orderId      Int
+  listingId    Int
+  qtyRequested Float    // in kg
+  priceAtOrder Float    // Price locked at the time of order confirmation
+  status       String   @default("confirmed") // confirmed, fulfilled, cancelled, rerouted
+  createdAt    DateTime @default(now())
+
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  listing      Listing  @relation("ListingToOrderItem", fields: [listingId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, listingId])
+  @@index([orderId])
+  @@index([listingId])
+}
+
+model Courier {
+  id               Int       @id @default(autoincrement())
+  name             String
+  email            String    @unique
+  phone            String
+  vehicleType      String    // "motorcycle", "tricycle", "multicab", "van"
+  licensePlate     String
+  licenseNo        String
+  verifiedAt       DateTime?
+  reliabilityScore Float     @default(5.0)
+  totalDeliveries  Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  deliveries       Delivery[]
+  ratings          Rating[]  @relation("RatingToCourier")
+}
+
+model Delivery {
+  id            Int       @id @default(autoincrement())
+  orderId       Int       @unique
+  courierId     Int
+  routeId       Int?      // NULL if one-to-one; references Route if pooled
+  pickupTime    DateTime?
+  deliveryTime  DateTime?
+  pickupProof   String?   // Photo URL or Base64 string
+  deliveryProof String?   // Photo URL or Base64 string
+  status        String    @default("pending") // pending, picked_up, in_transit, delivered, failed
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  courier       Courier   @relation(fields: [courierId], references: [id])
+  route         Route?    @relation(fields: [routeId], references: [id], onDelete: SetNull)
+
+  @@index([courierId])
+  @@index([status])
+}
+
+model Route {
+  id           Int        @id @default(autoincrement())
+  date         DateTime
+  type         String     @default("pooled") // pooled or one-to-one
+  barangayFrom String     // Agricultural origin
+  barangayTo   String     // Commercial drop destination
+  createdAt    DateTime   @default(now())
+
+  deliveries   Delivery[]
+}
+
+model Rating {
+  id           Int       @id @default(autoincrement())
+  orderId      Int
+  fromType     String    // "farmer", "business", "courier"
+  toType       String    // "farmer", "business", "courier"
+  toFarmerId   Int?
+  toBusinessId Int?
+  toCourierId  Int?
+  score        Float     // 1.0 - 5.0
+  comment      String?
+  createdAt    DateTime  @default(now())
+
+  order        Order     @relation("RatingToOrder", fields: [orderId], references: [id], onDelete: Cascade)
+  farmer       Farmer?   @relation("RatingToFarmer", fields: [toFarmerId], references: [id], onDelete: SetNull)
+  business     Business? @relation("RatingToBusiness", fields: [toBusinessId], references: [id], onDelete: SetNull)
+  courier      Courier?  @relation("RatingToCourier", fields: [toCourierId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([fromType])
+}
+
+model Dispute {
+  id           Int       @id @default(autoincrement())
+  orderId      Int       @unique
+  raisedBy     String    // "farmer", "business"
+  description  String
+  status       String    @default("open") // open, under_review, resolved
+  resolution   String?   // Admin resolution notes
+  refundAmount Float     @default(0)
+  evidence     String?   // Photo evidence URL
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  type      String   // "commission", "delivery_fee", "refund", "payout"
+  amount    Float
+  status    String   @default("pending") // pending, completed, failed
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
