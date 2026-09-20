@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -8,7 +8,7 @@ import {
   ShoppingBag, Sprout, Truck, Clock, 
   Plus, LogOut, MapPin, Phone, Sun, Moon
 } from 'lucide-react';
-import { getCurrentUser, setCurrentUser, clearCurrentUser, UserSession, UserRole } from '@/lib/auth';
+import { AuthUser, fetchCurrentUser, loginDemoUser, logoutUser } from '@/lib/auth-client';
 import { useTheme } from '@/context/ThemeContext';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -19,11 +19,8 @@ import { Separator } from '@/components/ui/separator';
 export default function DashboardPage() {
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
-  const [user, setUser] = useState<UserSession | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return getCurrentUser() || setCurrentUser('buyer');
-  });
-  const [loading] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Supplier state: dynamic listings
   const [supplierListings, setSupplierListings] = useState([
@@ -49,16 +46,31 @@ export default function DashboardPage() {
     activeFarmers: 24,
   };
 
+  useEffect(() => {
+    fetchCurrentUser().then((u) => {
+      if (u) {
+        setUser(u);
+      } else {
+        router.push('/login');
+      }
+      setLoading(false);
+    });
+  }, [router]);
 
-
-  const switchRole = (role: UserRole) => {
-    const updated = setCurrentUser(role);
-    setUser(updated);
+  const switchRole = async (role: 'BUYER' | 'FARMER' | 'COURIER' | 'ADMIN') => {
+    try {
+      const res = await loginDemoUser(role);
+      setUser(res.user);
+      router.refresh();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleLogout = () => {
-    clearCurrentUser();
+  const handleLogout = async () => {
+    await logoutUser();
     router.push('/login');
+    router.refresh();
   };
 
   const handleAddListing = (e: React.FormEvent) => {
@@ -108,10 +120,11 @@ export default function DashboardPage() {
             <Separator orientation="vertical" className="h-4" />
 
             {/* Portal Badge */}
-            <Badge variant="outline" className="text-emerald-600 dark:text-emerald-400 text-xs capitalize">
-              {user.role === 'buyer' && 'Customer'}
-              {user.role === 'supplier' && 'Supplier'}
-              {user.role === 'admin' && 'Admin'}
+            <Badge variant="outline" className="text-emerald-600 dark:text-emerald-400 text-xs">
+              {user.role === 'BUYER' && 'Kitchen / Buyer'}
+              {user.role === 'FARMER' && 'Farmer / Supplier'}
+              {user.role === 'COURIER' && 'Courier'}
+              {user.role === 'ADMIN' && 'Admin'}
             </Badge>
           </div>
 
@@ -120,24 +133,32 @@ export default function DashboardPage() {
             <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border text-xs">
               <Button
                 size="xs"
-                variant={user.role === 'buyer' ? "emerald" : "ghost"}
-                onClick={() => switchRole('buyer')}
+                variant={user.role === 'BUYER' ? "emerald" : "ghost"}
+                onClick={() => switchRole('BUYER')}
                 className="text-xs"
               >
                 Buyer
               </Button>
               <Button
                 size="xs"
-                variant={user.role === 'supplier' ? "emerald" : "ghost"}
-                onClick={() => switchRole('supplier')}
+                variant={user.role === 'FARMER' ? "emerald" : "ghost"}
+                onClick={() => switchRole('FARMER')}
                 className="text-xs"
               >
-                Supplier
+                Farmer
               </Button>
               <Button
                 size="xs"
-                variant={user.role === 'admin' ? "emerald" : "ghost"}
-                onClick={() => switchRole('admin')}
+                variant={user.role === 'COURIER' ? "emerald" : "ghost"}
+                onClick={() => switchRole('COURIER')}
+                className="text-xs"
+              >
+                Courier
+              </Button>
+              <Button
+                size="xs"
+                variant={user.role === 'ADMIN' ? "emerald" : "ghost"}
+                onClick={() => switchRole('ADMIN')}
                 className="text-xs"
               >
                 Admin
@@ -179,7 +200,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{user.name}</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {user.businessName && `${user.businessName} • `}{user.barangay}
+              {user.email} • {user.role} • Status: {user.verificationStatus}
             </p>
           </div>
 
@@ -190,7 +211,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 1. BUYER DASHBOARD */}
-        {user.role === 'buyer' && (
+        {user.role === 'BUYER' && (
           <div className="space-y-6">
             {/* Active Delivery Card */}
             <Card className="p-5 border-emerald-500/30 bg-emerald-500/5">
@@ -279,8 +300,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* 2. SUPPLIER DASHBOARD */}
-        {user.role === 'supplier' && (
+        {/* 2. FARMER / SUPPLIER DASHBOARD */}
+        {(user.role === 'FARMER' || user.role === 'COURIER') && (
           <div className="space-y-6">
             {/* Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -370,7 +391,7 @@ export default function DashboardPage() {
         )}
 
         {/* 3. ADMIN DASHBOARD */}
-        {user.role === 'admin' && (
+        {user.role === 'ADMIN' && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Card className="p-4">
