@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   try {
     const listings = await prisma.listing.findMany({
-      where: { status: 'active' },
+      where: { status: 'ACTIVE' },
       include: {
         farmer: {
           select: {

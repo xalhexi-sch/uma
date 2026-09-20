@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, OrderStatus, PaymentStatus, DeliveryType } from '@prisma/client';
 
 export async function GET() {
   try {
@@ -9,7 +9,7 @@ export async function GET() {
         business: { select: { name: true, barangay: true } },
         orderItems: {
           include: {
-            listing: { select: { crop: true, price: true } },
+            listing: { select: { crop: true, priceCentavos: true } },
           },
         },
         delivery: {
@@ -37,35 +37,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cutoffWindow = new Date();
-    cutoffWindow.setHours(20, 0, 0); // 8pm cutoff
+    const scheduledDate = new Date();
+    scheduledDate.setDate(scheduledDate.getDate() + 1);
 
-    const deliveryFee = deliveryType === 'pooled' ? 100 : 150;
-    const totalValue = items.reduce(
-      (sum: number, item: { qty: number; price: number }) => sum + item.qty * item.price,
+    const deliveryFeeCentavos = deliveryType === 'pooled' ? 10000 : 15000;
+    const subtotalCentavos = items.reduce(
+      (sum: number, item: { qty: number; price: number }) =>
+        sum + Math.round(item.qty * item.price * 100),
       0
     );
+    const totalCentavos = subtotalCentavos + deliveryFeeCentavos;
+    const orderCode = `UMA-2609-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const order = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const createdOrder = await tx.order.create({
         data: {
+          code: orderCode,
           businessId: Number(businessId),
-          cutoffWindow,
-          status: 'confirmed',
-          paymentStatus: 'unpaid',
-          deliveryFee,
-          deliveryType,
-          totalValue,
+          requestedFor: scheduledDate,
+          deliveryAddress: 'Montilla Blvd, Butuan City',
+          deliveryWindow: 'MORNING_6_9',
+          status: OrderStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.UNPAID,
+          deliveryType: deliveryType === 'pooled' ? DeliveryType.POOLED : DeliveryType.ONE_TO_ONE,
+          subtotalCentavos,
+          deliveryFeeCentavos,
+          discountCentavos: 0,
+          totalCentavos,
         },
       });
 
       for (const item of items) {
+        const itemPriceCentavos = Math.round(Number(item.price) * 100);
+        const lineTotalCentavos = Math.round(Number(item.qty) * itemPriceCentavos);
+
         await tx.orderItem.create({
           data: {
             orderId: createdOrder.id,
             listingId: Number(item.listingId),
             qtyRequested: Number(item.qty),
-            priceAtOrder: Number(item.price),
+            priceAtOrderCentavos: itemPriceCentavos,
+            lineTotalCentavos,
             status: 'confirmed',
           },
         });

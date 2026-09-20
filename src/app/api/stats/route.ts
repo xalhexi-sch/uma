@@ -7,7 +7,7 @@ export async function GET() {
       prisma.farmer.count(),
       prisma.business.count(),
       prisma.order.count(),
-      prisma.listing.count({ where: { status: 'active' } }),
+      prisma.listing.count({ where: { status: 'ACTIVE' } }),
     ]);
 
     return NextResponse.json({
