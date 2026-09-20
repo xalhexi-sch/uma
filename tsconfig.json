@@ -19,8 +19,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "cn": ["./src/lib/utils"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [

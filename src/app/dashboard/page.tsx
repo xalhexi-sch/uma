@@ -1,17 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
-  ShoppingBag, Sprout, ShieldCheck, Truck, Clock, 
+  ShoppingBag, Sprout, Truck, Clock, 
   Plus, LogOut, MapPin, Phone, Sun, Moon
 } from 'lucide-react';
 import { getCurrentUser, setCurrentUser, clearCurrentUser, UserSession, UserRole } from '@/lib/auth';
 import { useTheme } from '@/context/ThemeContext';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -19,8 +19,11 @@ import { Separator } from '@/components/ui/separator';
 export default function DashboardPage() {
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
-  const [user, setUser] = useState<UserSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<UserSession | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return getCurrentUser() || setCurrentUser('buyer');
+  });
+  const [loading] = useState(false);
 
   // Supplier state: dynamic listings
   const [supplierListings, setSupplierListings] = useState([
@@ -46,16 +49,7 @@ export default function DashboardPage() {
     activeFarmers: 24,
   };
 
-  useEffect(() => {
-    const session = getCurrentUser();
-    if (!session) {
-      const defaultUser = setCurrentUser('buyer');
-      setUser(defaultUser);
-    } else {
-      setUser(session);
-    }
-    setLoading(false);
-  }, []);
+
 
   const switchRole = (role: UserRole) => {
     const updated = setCurrentUser(role);

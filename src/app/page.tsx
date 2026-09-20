@@ -10,7 +10,7 @@ import {
 import { CATALOG_PRODUCTS, Product } from '@/lib/catalog';
 import { useTheme } from '@/context/ThemeContext';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -169,7 +169,7 @@ export default function HomePage() {
                 <div className="p-4 pb-2 flex items-center justify-between">
                   <Badge variant="outline" className="text-emerald-600 dark:text-emerald-400 gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Today's Pick
+                    Today&apos;s Pick
                   </Badge>
                   <span className="text-xs font-mono text-muted-foreground">45 min delivery</span>
                 </div>

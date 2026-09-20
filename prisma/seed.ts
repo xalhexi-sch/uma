@@ -91,7 +91,7 @@ async function main() {
     },
   });
 
-  const listing3 = await prisma.listing.create({
+  await prisma.listing.create({
     data: {
       farmerId: farmer3.id,
       crop: 'Squash',

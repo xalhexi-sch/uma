@@ -11,47 +11,43 @@ interface ThemeContextType {
   setTheme: (theme: Theme) => void;
 }
 
+function applyThemeToDocument(t: Theme) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (t === 'dark') {
+    root.classList.add('dark');
+    root.classList.remove('light');
+  } else {
+    root.classList.remove('dark');
+    root.classList.add('light');
+  }
+}
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'light';
     try {
       const saved = localStorage.getItem('uma-theme') as Theme | null;
-      if (saved === 'light' || saved === 'dark') {
-        setThemeState(saved);
-        applyTheme(saved);
-      } else {
-        setThemeState('dark');
-        applyTheme('dark');
-      }
+      if (saved === 'light' || saved === 'dark') return saved;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     } catch {
-      applyTheme('dark');
+      return 'light';
     }
-    setMounted(true);
-  }, []);
+  });
 
-  const applyTheme = (t: Theme) => {
-    const root = document.documentElement;
-    if (t === 'dark') {
-      root.classList.add('dark');
-      root.classList.remove('light');
-    } else {
-      root.classList.remove('dark');
-      root.classList.add('light');
-    }
-  };
+  useEffect(() => {
+    applyThemeToDocument(theme);
+  }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     try {
       localStorage.setItem('uma-theme', newTheme);
     } catch {
-      // Ignore localStorage errors
+      // Ignore storage errors
     }
-    applyTheme(newTheme);
   };
 
   const toggleTheme = () => {
@@ -70,8 +66,8 @@ export function useTheme() {
   const context = useContext(ThemeContext);
   if (!context) {
     return {
-      theme: 'dark' as Theme,
-      isDark: true,
+      theme: 'light' as Theme,
+      isDark: false,
       toggleTheme: () => {},
       setTheme: () => {},
     };
