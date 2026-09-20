@@ -20,6 +20,7 @@ export const APP_CONFIG = {
     deliveryFeeOneToOneCentavos: 15000, // ₱150.00
     deliveryFeePooledCentavos: 10000,   // ₱100.00
     minOrderDefaultKg: 5,
+    firstOrderDeliveryCredit: true,     // First-order waived delivery fee flag
   },
   deliveryWindows: [
     { id: 'MORNING_6_9', label: 'Morning (6:00 AM – 9:00 AM)', startHour: 6, endHour: 9 },
