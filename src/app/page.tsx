@@ -1,496 +1,579 @@
-'use client';
-
-import React, { useState } from 'react';
-import Image from 'next/image';
+import React from 'react';
 import Link from 'next/link';
-import { 
-  Moon, Sun, ChevronRight, Truck, ShoppingBag, Star, 
-  MapPin, Store, CheckCircle2, ArrowRight, Sparkles, Gift
-} from 'lucide-react';
-import { CATALOG_PRODUCTS, Product } from '@/lib/catalog';
-import { useTheme } from '@/context/ThemeContext';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Metadata } from 'next';
+import { prisma } from '@/lib/prisma';
+import { getOptionalUser } from '@/server/auth/guards';
+import { PublicHeader } from '@/components/navigation/PublicHeader';
+import { PublicFooter } from '@/components/navigation/PublicFooter';
+import { SampleBasketCard } from '@/components/landing/SampleBasketCard';
+import { FeeCalculator } from '@/components/landing/FeeCalculator';
+import { LiveHarvestPreview } from '@/components/landing/LiveHarvestPreview';
+import { FaqAccordion } from '@/components/landing/FaqAccordion';
+import { LeadCaptureForm } from '@/components/landing/LeadCaptureForm';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { 
+  ArrowRight, ShieldCheck, MapPin, CheckCircle2, 
+  Store, Tractor, AlertCircle 
+} from 'lucide-react';
 
-export default function HomePage() {
-  const { isDark, toggleTheme } = useTheme();
-  const [orderProduct, setOrderProduct] = useState<Product | null>(null);
-  const [orderQty, setOrderQty] = useState<number>(5);
-  const [orderSuccess, setOrderSuccess] = useState(false);
-  const [signupEmail, setSignupEmail] = useState('');
-  const [promoClaimed, setPromoClaimed] = useState(false);
+export const metadata: Metadata = {
+  title: 'UMA — B2B Agricultural Marketplace | Scheduled Produce for Kitchens',
+  description:
+    'Connecting Butuan-area smallholder farmers directly with commercial kitchens, carinderias, canteens, and restaurants. Transparent 8% fee, harvest-to-order scheduling, and photo-verified delivery.',
+  openGraph: {
+    title: 'UMA — B2B Agricultural Marketplace',
+    description:
+      'Scheduled farm-fresh produce for commercial kitchens in Butuan City & Agusan del Norte. 8% platform fee · Zero bagsakan markups.',
+    url: 'https://uma.xalhexi.wtf',
+    siteName: 'UMA Marketplace',
+    locale: 'en_PH',
+    type: 'website',
+  },
+};
 
-  // Top 6 popular essentials for the landing page
-  const popularProducts = CATALOG_PRODUCTS.filter((p) => p.isPopular).slice(0, 6);
+export default async function HomePage() {
+  const user = await getOptionalUser();
 
-  const handleClaimPromo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!signupEmail) return;
-    setPromoClaimed(true);
-    setTimeout(() => {
-      setPromoClaimed(false);
-      setSignupEmail('');
-    }, 3500);
-  };
+  let activeListings: Array<{
+    id: number;
+    crop: string;
+    category: string;
+    priceCentavos: number;
+    unit: string;
+    estimatedQty: number;
+    reservedQty: number;
+    minOrderQty: number;
+    harvestDate: Date;
+    imageUrl?: string | null;
+    farmer: {
+      name: string;
+      barangay: string;
+      reliabilityScore: number;
+    };
+  }> = [];
 
-  const handleOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orderProduct) return;
-    setOrderSuccess(true);
-    setTimeout(() => {
-      setOrderSuccess(false);
-      setOrderProduct(null);
-    }, 2000);
+  try {
+    activeListings = await prisma.listing.findMany({
+      where: { status: 'ACTIVE' },
+      take: 4,
+      orderBy: { harvestDate: 'asc' },
+      include: {
+        farmer: {
+          select: {
+            name: true,
+            barangay: true,
+            reliabilityScore: true,
+          },
+        },
+      },
+    });
+  } catch {
+    // If DB is offline or in mock build, activeListings remains empty and UI gracefully handles it
+  }
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'UMA Agricultural B2B Marketplace',
+    url: 'https://uma.xalhexi.wtf',
+    logo: 'https://uma.xalhexi.wtf/uma-logo-green.png',
+    description:
+      'B2B forward-order agricultural platform connecting Butuan-area farmers directly with commercial kitchens, carinderias, and restaurants.',
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Butuan City',
+      addressRegion: 'Agusan del Norte',
+      addressCountry: 'PH',
+    },
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-emerald-500 selection:text-white">
-      
-      {/* 1. Top Promo Banner */}
-      <div className="bg-emerald-600 text-white text-xs font-medium py-2 px-4 text-center flex items-center justify-center gap-2">
-        <Gift size={14} className="shrink-0" />
-        <span><strong>Free delivery on your 1st order</strong> • Farm fresh to your door in Butuan</span>
-        <button
-          onClick={() => document.getElementById('claim-section')?.scrollIntoView({ behavior: 'smooth' })}
-          className="underline font-bold ml-1 hover:text-emerald-100 transition cursor-pointer"
-        >
-          Claim Now
-        </button>
-      </div>
+    <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-brand-forest selection:text-white">
+      {/* JSON-LD Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
-      {/* 2. Navigation Bar */}
-      <header className="border-b border-border bg-background/95 sticky top-0 z-40 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <Image
-              src="/uma-logo-green.png"
-              alt="UMA Logo"
-              width={32}
-              height={32}
-              className="object-contain transition-transform group-hover:scale-105"
-              priority
-            />
-            <span className="text-xl font-bold tracking-tight">UMA</span>
-          </Link>
+      {/* Navigation Bar */}
+      <PublicHeader user={user} />
 
-          {/* Links & Actions */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Link href="/products" className="hidden sm:inline-flex text-sm text-muted-foreground hover:text-foreground font-medium transition">
-              Products
-            </Link>
-            <button
-              onClick={() => document.getElementById('how-section')?.scrollIntoView({ behavior: 'smooth' })}
-              className="hidden sm:inline-flex text-sm text-muted-foreground hover:text-foreground font-medium transition cursor-pointer"
-            >
-              How It Works
-            </button>
-            <Link href="/dashboard" className="hidden sm:inline-flex text-sm text-muted-foreground hover:text-foreground font-medium transition">
-              Dashboard
-            </Link>
-
-            <Separator orientation="vertical" className="hidden sm:block h-4 mx-1" />
-
-            {/* Theme Toggle */}
-            <Button
-              variant="outline"
-              size="icon-sm"
-              onClick={toggleTheme}
-              aria-label="Toggle Theme"
-              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              {isDark ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-zinc-700" />}
-            </Button>
-
-            {/* Sign In CTA */}
-            <Link href="/login" className={buttonVariants({ variant: "emerald", size: "sm" })}>
-              Sign In
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* 3. Hero Section */}
-      <section className="border-b border-border bg-card/40 py-12 sm:py-16 lg:py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            
-            {/* Left: Punchy Headline & CTAs */}
-            <div className="lg:col-span-7 space-y-5">
-              <Badge variant="secondary" className="gap-1.5 px-2.5 py-1 text-xs text-emerald-600 dark:text-emerald-400">
-                <Sparkles size={12} />
-                <span>Butuan Farm Direct</span>
-              </Badge>
-
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]">
-                Fresh farm food.<br />
-                <span className="text-emerald-600 dark:text-emerald-400">Delivered fast.</span>
-              </h1>
-
-              <p className="text-base sm:text-lg text-muted-foreground max-w-lg leading-relaxed">
-                Bottled cow milk, fresh eggs, and veggies straight from Butuan farms. Fair prices, zero middlemen.
-              </p>
-
-              <div className="flex flex-wrap gap-3 pt-1">
-                <Link href="/products" className={buttonVariants({ variant: "emerald", size: "lg", className: "gap-2" })}>
-                  <span>Browse Catalog</span>
-                  <ChevronRight size={16} />
-                </Link>
-                <Link href="/login" className={buttonVariants({ variant: "outline", size: "lg" })}>
-                  Business Login
-                </Link>
-              </div>
-
-              {/* Value Badges */}
-              <div className="pt-4 border-t border-border flex flex-wrap gap-5 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={14} className="text-emerald-500" />
-                  <span>Free 1st delivery</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={14} className="text-emerald-500" />
-                  <span>Pickup nearby</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={14} className="text-emerald-500" />
-                  <span>Pay on delivery</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Featured Card */}
-            <div className="lg:col-span-5">
-              <Card className="shadow-lg overflow-hidden border-border">
-                <div className="p-4 pb-2 flex items-center justify-between">
-                  <Badge variant="outline" className="text-emerald-600 dark:text-emerald-400 gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Today&apos;s Pick
-                  </Badge>
-                  <span className="text-xs font-mono text-muted-foreground">45 min delivery</span>
+      <main className="flex-1">
+        {/* ================= 1. HERO SECTION ================= */}
+        <section className="relative overflow-hidden pt-10 pb-16 sm:pt-16 sm:pb-24 border-b border-border/60 bg-linear-to-b from-brand-forest/5 via-background to-background">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+              
+              {/* Left Column: Headlines & Actions */}
+              <div className="lg:col-span-7 space-y-6">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-brand-forest/30 bg-brand-forest/10 text-brand-forest dark:text-brand-green text-xs font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                  <span>Agricultural Logistics Research Proposal & Pilot Platform</span>
                 </div>
 
-                <div className="relative h-48 w-full bg-muted overflow-hidden px-4">
-                  <div className="relative h-full w-full rounded-lg overflow-hidden">
-                    <Image
-                      src="https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=600&q=80"
-                      alt="Fresh Cow Milk"
-                      fill
-                      sizes="(max-width: 768px) 100vw, 400px"
-                      className="object-cover"
-                      priority
-                    />
-                    <Badge className="absolute top-2 left-2 bg-emerald-600 text-white text-[10px]">
-                      Morning Milking
-                    </Badge>
-                    <div className="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 rounded text-xs text-amber-400 flex items-center gap-1">
-                      <Star size={11} fill="currentColor" />
-                      <span>4.9</span>
-                    </div>
-                  </div>
-                </div>
+                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-display font-black tracking-tight text-foreground leading-[1.12]">
+                  Direct B2B Farm Procurement,{' '}
+                  <span className="text-brand-forest dark:text-brand-green underline decoration-harvest-amber decoration-4 underline-offset-4">
+                    scheduled to your kitchen.
+                  </span>
+                </h1>
 
-                <CardContent className="pt-4 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-bold text-base">Fresh Cow Milk</h3>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MapPin size={11} className="text-emerald-500" /> Buenavista Dairy Hills
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">₱95</div>
-                      <div className="text-[10px] text-muted-foreground">1L Glass Bottle</div>
-                    </div>
-                  </div>
+                <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
+                  A proposed harvest-to-order direct supply chain connecting Butuan smallholder farmers with carinderias, restaurants, and commercial canteens. Pre-scheduled morning batches, zero speculative waste, and a transparent 8% coordination fee.
+                </p>
 
-                  <div className="text-xs flex justify-between pt-2 border-t border-border">
-                    <span className="text-muted-foreground">Delivery Fee:</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">₱0 (1st order promo)</span>
-                  </div>
-                </CardContent>
-
-                <CardFooter className="pt-0">
-                  <Link href="/products" className={buttonVariants({ variant: "emerald", className: "w-full gap-2" })}>
-                    <ShoppingBag size={14} />
-                    <span>Order Now</span>
+                {/* Primary & Secondary Action CTAs */}
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <Link
+                    href="/register?role=BUYER"
+                    className="px-6 py-3 rounded-lg bg-harvest-amber hover:bg-harvest-amber/90 text-neutral-900 font-bold text-sm sm:text-base shadow-sm transition-all hover:translate-y-[-1px] cursor-pointer inline-flex items-center gap-2 font-display"
+                  >
+                    <span>Explore Kitchen Portal</span>
+                    <ArrowRight className="w-4 h-4" />
                   </Link>
-                </CardFooter>
-              </Card>
+
+                  <Link
+                    href="/register?role=FARMER"
+                    className="px-5 py-3 rounded-lg border border-border bg-card hover:bg-muted text-foreground font-semibold text-sm sm:text-base transition cursor-pointer inline-flex items-center gap-2 font-display"
+                  >
+                    <Tractor className="w-4 h-4 text-brand-forest dark:text-brand-green" />
+                    <span>View Producer Framework</span>
+                  </Link>
+                </div>
+
+                {/* Trust Line */}
+                <div className="pt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-brand-forest dark:text-brand-green shrink-0" />
+                    <span>Pilot in Butuan City</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Verified farms & businesses</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>Photo proof on every delivery</span>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <a
+                    href="#how-it-works"
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition"
+                  >
+                    <span>See how forward scheduling works</span>
+                    <span>↓</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Right Column: Live Sample Basket Card */}
+              <div className="lg:col-span-5">
+                <SampleBasketCard />
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 2. THE PROBLEM SECTION ================= */}
+        <section className="py-16 sm:py-20 border-b border-border/60 bg-muted/20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+            <div className="text-center max-w-3xl mx-auto space-y-2">
+              <Badge variant="outline" className="text-xs uppercase tracking-wider text-muted-foreground">
+                Supply Chain Reality
+              </Badge>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                Why Traditional Produce Supply Breaks in Butuan
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Speculative harvests and multi-tiered middlemen hurt both commercial buyers and growers.
+              </p>
             </div>
 
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Popular Essentials Section */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 flex-grow">
-        <div className="flex justify-between items-end mb-8 gap-3">
-          <div>
-            <Badge variant="secondary" className="mb-1 text-[11px]">Top Picks</Badge>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Popular Today</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Harvested fresh this morning by local growers.
-            </p>
-          </div>
-          
-          <Link href="/products" className={buttonVariants({ variant: "ghost", size: "sm", className: "text-emerald-600 dark:text-emerald-400 gap-1" })}>
-            <span>View all 10+</span>
-            <ArrowRight size={14} />
-          </Link>
-        </div>
-
-        {/* Product Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {popularProducts.map((product) => (
-            <Card key={product.id} className="overflow-hidden hover:border-emerald-500/50 transition-all flex flex-col justify-between group">
-              {/* Product Image */}
-              <div className="relative aspect-[16/10] w-full bg-muted overflow-hidden">
-                <Image
-                  src={product.imageUrl}
-                  alt={product.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute top-2.5 left-2.5 flex gap-1">
-                  {product.badge && (
-                    <Badge className="bg-emerald-600 text-white text-[10px]">
-                      {product.badge}
-                    </Badge>
-                  )}
-                  {product.hasPickup && (
-                    <Badge variant="secondary" className="text-[10px] gap-1 bg-black/70 text-white">
-                      <Store size={10} /> Pickup
-                    </Badge>
-                  )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Card 1: Commercial Kitchens */}
+              <div className="p-6 rounded-xl bg-card border border-border/80 shadow-xs space-y-3">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  <Store className="w-5 h-5" />
                 </div>
-                <div className="absolute bottom-2.5 right-2.5 bg-black/80 px-2 py-0.5 rounded text-[11px] font-semibold text-amber-400 flex items-center gap-1">
-                  <Star size={11} fill="currentColor" />
-                  <span>{product.rating}</span>
-                </div>
+                <h3 className="font-bold text-base text-foreground">Commercial Kitchens</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  Erratic supply, changing daily prices, and morning market chaos. Calling ten different stall vendors who may run out before lunch prep begins.
+                </p>
               </div>
 
-              {/* Card Body */}
-              <CardContent className="pt-4 flex-grow flex flex-col justify-between">
-                <div>
-                  <h3 className="font-semibold text-base group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition leading-snug">
-                    {product.name}
-                  </h3>
-                  
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">₱{product.price}</span>
-                    <span className="text-xs text-muted-foreground">/ {product.unit}</span>
-                  </div>
+              {/* Card 2: Smallholder Farmers */}
+              <div className="p-6 rounded-xl bg-card border border-border/80 shadow-xs space-y-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <Tractor className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base text-foreground">Smallholder Farmers</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  Middlemen pocket 20% to 30% of market value. Small harvest baskets cannot justify private transport into the city, leaving farmers price-takers at farmgate.
+                </p>
+              </div>
 
-                  <div className="mt-3 pt-2.5 border-t border-border space-y-1 text-xs text-muted-foreground">
-                    <div className="flex justify-between">
-                      <span className="flex items-center gap-1">
-                        <Truck size={12} className="text-emerald-500" /> Delivery:
-                      </span>
-                      <span className="font-medium text-foreground">{product.deliveryEstimate}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="flex items-center gap-1">
-                        <MapPin size={12} /> Origin:
-                      </span>
-                      <span>{product.origin}</span>
-                    </div>
-                  </div>
+              {/* Card 3: Both Sides */}
+              <div className="p-6 rounded-xl bg-card border border-border/80 shadow-xs space-y-3">
+                <div className="w-10 h-10 rounded-lg bg-brand-forest/10 text-brand-forest dark:text-brand-green flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base text-foreground">Zero Custody Visibility</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  Neither side has digital proof of who harvested what, when it was picked up, or who is liable for transit spoilage until crates arrive bruised at the door.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 3. HOW IT WORKS (4 STEPS) ================= */}
+        <section id="how-it-works" className="py-16 sm:py-24 border-b border-border/60">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="space-y-2 max-w-2xl">
+                <Badge variant="outline" className="text-xs uppercase tracking-wider text-brand-forest dark:text-brand-green border-brand-forest/30">
+                  Disciplined Operations
+                </Badge>
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                  The Harvest-to-Order Loop
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Zero speculative harvest waste. Direct scheduled movement from farmgate to kitchen prep table.
+                </p>
+              </div>
+
+              <Link
+                href="/how-it-works"
+                className="text-xs sm:text-sm font-bold text-brand-forest dark:text-brand-green hover:underline inline-flex items-center gap-1"
+              >
+                <span>Read the full operational blueprint</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
+              {/* Step 1 */}
+              <div className="p-5 rounded-xl border border-border/80 bg-card space-y-3 relative">
+                <div className="w-8 h-8 rounded-full bg-brand-forest text-white font-bold text-xs flex items-center justify-center">
+                  1
+                </div>
+                <h4 className="font-bold text-base text-foreground">Farmers List Upcoming Harvest</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Growers post crop type, estimated kg, and harvest date days before cutting.
+                </p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="p-5 rounded-xl border border-border/80 bg-card space-y-3 relative">
+                <div className="w-8 h-8 rounded-full bg-harvest-amber text-neutral-900 font-bold text-xs flex items-center justify-center font-display">
+                  2
+                </div>
+                <h4 className="font-bold text-base text-foreground font-display">Forward-Scheduled Order Batching</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Commercial kitchens pre-schedule harvest requirements for consolidated dawn field cutting and morning dispatch.
+                </p>
+              </div>
+
+              {/* Step 3 */}
+              <div className="p-5 rounded-xl border border-border/80 bg-card space-y-3 relative">
+                <div className="w-8 h-8 rounded-full bg-brand-forest text-white font-bold text-xs flex items-center justify-center">
+                  3
+                </div>
+                <h4 className="font-bold text-base text-foreground">Dawn Harvest at Farmgate</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Farmers cut only the confirmed order quantities at dawn (4:00–5:30 AM). Zero unsold spoilage.
+                </p>
+              </div>
+
+              {/* Step 4 */}
+              <div className="p-5 rounded-xl border border-border/80 bg-card space-y-3 relative">
+                <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
+                  4
+                </div>
+                <h4 className="font-bold text-base text-foreground">One Combined Courier Run</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Dispatched rider gathers multi-farm baskets and delivers by 9:00 AM with photo proof.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 4. WHY UMA (6-ITEM GRID) ================= */}
+        <section className="py-16 sm:py-20 border-b border-border/60 bg-muted/15">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+            <div className="text-center max-w-2xl mx-auto space-y-2">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                Engineered for Commercial Food Service
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Built specifically around the operational realities of restaurant and carinderia procurement.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Feature 1 */}
+              <div className="p-5 rounded-xl bg-card border border-border/80 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+                  <CheckCircle2 className="w-4 h-4 text-brand-forest dark:text-brand-green" />
+                  <span>One Basket, Multiple Farms</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Combine native tomatoes from Antongalon and highland cabbage from Taguibo in a single invoice with consolidated morning delivery.
+                </p>
+              </div>
+
+              {/* Feature 2 */}
+              <div className="p-5 rounded-xl bg-card border border-border/80 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+                  <CheckCircle2 className="w-4 h-4 text-brand-forest dark:text-brand-green" />
+                  <span>Harvest-to-Order Discipline</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Produce is cut only after your kitchen confirms the order. Arrives within 4 hours of field cutting rather than sitting for days in damp warehouses.
+                </p>
+              </div>
+
+              {/* Feature 3 */}
+              <div className="p-5 rounded-xl bg-card border border-border/80 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+                  <CheckCircle2 className="w-4 h-4 text-brand-forest dark:text-brand-green" />
+                  <span>Transparent 8% Platform Fee</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  No hidden distributor markups or fluctuating brokerage cuts. A fixed 8% technology and coordination fee shown upfront on every batch.
+                </p>
+              </div>
+
+              {/* Feature 4 */}
+              <div className="p-5 rounded-xl bg-card border border-border/80 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+                  <CheckCircle2 className="w-4 h-4 text-brand-forest dark:text-brand-green" />
+                  <span>Photo-Verified Custody Chain</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Couriers photograph crates at farmgate pickup and commercial kitchen delivery, preventing quality disputes and missing quantities.
+                </p>
+              </div>
+
+              {/* Feature 5 */}
+              <div className="p-5 rounded-xl bg-card border border-border/80 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+                  <CheckCircle2 className="w-4 h-4 text-brand-forest dark:text-brand-green" />
+                  <span>Backup Farmer Failover</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  If adverse weather impacts a specific farm, our cooperative failover engine automatically re-routes your order to an approved backup producer.
+                </p>
+              </div>
+
+              {/* Feature 6 */}
+              <div className="p-5 rounded-xl bg-card border border-border/80 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+                  <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+                  <span>Trade Credit for Vetted Buyers</span>
+                  <Badge variant="outline" className="text-[10px] ml-auto">Coming Soon</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Weekly invoice consolidated billing for verified commercial kitchens with 10+ completed on-time payment cycles.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= 5. WHERE EVERY PESO GOES (CALCULATOR) ================= */}
+        <section className="py-16 sm:py-24 border-b border-border/60">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8">
+            <div className="text-center space-y-2">
+              <Badge variant="outline" className="text-xs uppercase tracking-wider text-harvest-amber border-harvest-amber/40">
+                Institutional Honesty
+              </Badge>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                Where Every Peso Goes
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-xl mx-auto">
+                No opaque trader spread. Here is the exact unit economics breakdown applied to every produce order on the UMA platform.
+              </p>
+            </div>
+
+            <FeeCalculator />
+          </div>
+        </section>
+
+        {/* ================= 6. LIVE HARVEST PREVIEW ================= */}
+        {activeListings.length > 0 && (
+          <section className="py-16 sm:py-20 border-b border-border/60 bg-muted/15">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="space-y-1">
+                  <Badge variant="outline" className="text-xs uppercase tracking-wider text-brand-forest dark:text-brand-green">
+                    Confirmed Availability
+                  </Badge>
+                  <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight text-foreground">
+                    Active Harvest Batches in Pilot Clusters
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Active batches from verified grower cooperatives in Antongalon and Taguibo ready for scheduled cutting.
+                  </p>
                 </div>
 
-                <Button
-                  onClick={() => {
-                    setOrderProduct(product);
-                    setOrderQty(product.minOrder);
-                  }}
-                  variant="emerald"
-                  className="mt-4 w-full gap-1.5"
-                  size="sm"
+                <Link
+                  href="/browse"
+                  className="text-xs sm:text-sm font-bold text-brand-forest dark:text-brand-green hover:underline inline-flex items-center gap-1"
                 >
-                  <ShoppingBag size={14} />
-                  <span>Quick Order</span>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Catalog Teaser Banner */}
-        <Card className="mt-10 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-muted/40">
-          <div>
-            <h3 className="font-bold text-base">Looking for more items?</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Explore bell peppers, cabbage, native garlic, potatoes, and bulk staples.
-            </p>
-          </div>
-          <Link href="/products" className={buttonVariants({ size: "sm", className: "bg-foreground text-background hover:bg-foreground/90 gap-1.5 shrink-0" })}>
-            <span>Open Catalog</span>
-            <ArrowRight size={14} />
-          </Link>
-        </Card>
-      </section>
-
-      {/* 5. How It Works Section */}
-      <section id="how-section" className="border-y border-border bg-card/40 py-12 sm:py-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-md mx-auto mb-10">
-            <Badge variant="secondary" className="mb-1 text-[11px]">3 Steps</Badge>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">How UMA Works</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Fresh farm food at your door without friction.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <Card className="p-5 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
-                1
+                  <span>See full catalog ({activeListings.length} active listings)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
-              <h3 className="font-bold text-base">Choose Items</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Pick fresh milk, veggies, or eggs. Mix from different local farms into one basket.
-              </p>
-            </Card>
 
-            <Card className="p-5 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
-                2
-              </div>
-              <h3 className="font-bold text-base">Farms Harvest</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Growers harvest fresh for your order. Fast couriers bring it to your door or pickup nearby.
-              </p>
-            </Card>
-
-            <Card className="p-5 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
-                3
-              </div>
-              <h3 className="font-bold text-base">Inspect & Pay</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Check produce freshness at your door before confirming. Fair prices, no hassle.
-              </p>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. Free Delivery CTA Section */}
-      <section id="claim-section" className="max-w-md mx-auto px-4 py-12 sm:py-16 text-center">
-        <div className="w-10 h-10 rounded-xl bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
-          <Gift size={20} />
-        </div>
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">Get Free Delivery</h2>
-        <p className="text-xs text-muted-foreground mb-6">
-          Claim ₱0 delivery fee on your first order.
-        </p>
-
-        {promoClaimed ? (
-          <Badge variant="outline" className="p-3 text-xs text-emerald-600 dark:text-emerald-400 border-emerald-500/40">
-            🎉 Promo applied! Free delivery active at checkout.
-          </Badge>
-        ) : (
-          <form onSubmit={handleClaimPromo} className="flex gap-2">
-            <Input
-              type="email"
-              required
-              value={signupEmail}
-              onChange={(e) => setSignupEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="text-xs"
-            />
-            <Button type="submit" size="default" variant="emerald" className="shrink-0 text-xs">
-              Claim
-            </Button>
-          </form>
+              <LiveHarvestPreview listings={activeListings} />
+            </div>
+          </section>
         )}
-      </section>
 
-      {/* Quick Order Dialog */}
-      {orderProduct && (
-        <Dialog open={!!orderProduct} onOpenChange={(open) => !open && setOrderProduct(null)}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold">Quick Order</DialogTitle>
-              <DialogDescription className="text-xs">{orderProduct.name}</DialogDescription>
-            </DialogHeader>
+        {/* ================= 7. FOR KITCHENS / FOR FARMERS SPLIT ================= */}
+        <section className="py-16 sm:py-24 border-b border-border/60">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+            <div className="text-center max-w-2xl mx-auto space-y-2">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                Tailored for Both Sides of the Agri-Economy
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Select your path to join our Butuan commercial pilot.
+              </p>
+            </div>
 
-            {orderSuccess ? (
-              <div className="py-6 text-center space-y-2">
-                <CheckCircle2 size={36} className="mx-auto text-emerald-500" />
-                <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Order Confirmed!</p>
-                <p className="text-xs text-muted-foreground">Track live in your Dashboard.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* For Kitchens */}
+              <div className="p-8 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-col justify-between space-y-6">
+                <div className="space-y-4">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <Store className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground">For Commercial Kitchens</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                    Carinderias, school canteens, restaurants, and resort catering teams in Butuan City looking for consistent wholesale produce at stable farmgate pricing.
+                  </p>
+                  <ul className="space-y-2.5 text-xs sm:text-sm text-muted-foreground pt-2">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>One invoice, multi-farm consolidated morning delivery by 9:00 AM.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Pay-on-Delivery after visual crate inspection. Cash or GCash.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Forward-scheduled batch procurement for morning prep delivery.</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="pt-2">
+                  <Link
+                    href="/for-businesses"
+                    className="w-full text-center py-3 px-4 rounded-lg bg-brand-forest hover:bg-brand-forest/90 text-white font-semibold text-xs sm:text-sm transition shadow-xs inline-block"
+                  >
+                    Explore Commercial Kitchen Benefits
+                  </Link>
+                </div>
               </div>
-            ) : (
-              <form onSubmit={handleOrder} className="space-y-3 text-xs">
-                <Card className="p-3 space-y-1 bg-muted/40">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Price:</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">₱{orderProduct.price} / {orderProduct.unit}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Est. Delivery:</span>
-                    <span className="font-medium text-foreground">{orderProduct.deliveryEstimate}</span>
-                  </div>
-                </Card>
 
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="font-medium">Quantity</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{orderQty} {orderProduct.unit}</span>
+              {/* For Farmers */}
+              <div className="p-8 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-col justify-between space-y-6">
+                <div className="space-y-4">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <Tractor className="w-6 h-6" />
                   </div>
-                  <input
-                    type="range"
-                    min={orderProduct.minOrder}
-                    max={Math.min(50, orderProduct.availableQty)}
-                    step={orderProduct.unit.includes('Tray') ? 1 : 2}
-                    value={orderQty}
-                    onChange={(e) => setOrderQty(Number(e.target.value))}
-                    className="w-full accent-emerald-600 cursor-pointer"
-                  />
+                  <h3 className="text-xl font-bold text-foreground">For Farmers & Producers</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                    Smallholder growers and agricultural cooperatives in Antongalon, Taguibo, and Buenavista seeking fair farmgate compensation without middleman discounts.
+                  </p>
+                  <ul className="space-y-2.5 text-xs sm:text-sm text-muted-foreground pt-2">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Harvest only what has been pre-ordered and committed the night before.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Direct courier pickup at your farmgate. No city transport hassle.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Keep 92% of your produce value, settled promptly to your digital ledger.</span>
+                    </li>
+                  </ul>
                 </div>
 
-                <div className="pt-2 border-t border-border flex justify-between font-bold text-sm">
-                  <span>Total:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400">₱{(orderQty * orderProduct.price).toLocaleString()}</span>
+                <div className="pt-2">
+                  <Link
+                    href="/for-farmers"
+                    className="w-full text-center py-3 px-4 rounded-lg bg-card border border-border hover:bg-muted text-foreground font-semibold text-xs sm:text-sm transition shadow-xs inline-block"
+                  >
+                    Learn How Farmers Sell on UMA
+                  </Link>
                 </div>
-
-                <Button type="submit" variant="emerald" className="w-full">
-                  Confirm Order
-                </Button>
-              </form>
-            )}
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* 7. Footer */}
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground bg-card/20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Image
-              src="/uma-logo-green.png"
-              alt="UMA Logo"
-              width={18}
-              height={18}
-              className="object-contain"
-            />
-            <span className="font-semibold text-foreground">UMA</span>
-            <span>• Fresh Butuan farm delivery © 2026</span>
+              </div>
+            </div>
           </div>
+        </section>
 
-          <div className="flex gap-4">
-            <Link href="/products" className="hover:text-foreground transition">Catalog</Link>
-            <Link href="/dashboard" className="hover:text-foreground transition">Dashboard</Link>
-            <Link href="/login" className="hover:text-foreground transition">Login</Link>
+        {/* ================= 8. FAQ ACCORDION ================= */}
+        <section id="faq" className="py-16 sm:py-24 border-b border-border/60 bg-muted/15">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-10">
+            <div className="text-center space-y-2">
+              <Badge variant="outline" className="text-xs uppercase tracking-wider text-muted-foreground">
+                Got Questions?
+              </Badge>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Clear, transparent answers about our operational model, verification, and payment terms.
+              </p>
+            </div>
+
+            <FaqAccordion />
+
+            <div className="text-center pt-2">
+              <Link
+                href="/faq"
+                className="text-xs font-semibold text-brand-forest dark:text-brand-green hover:underline inline-flex items-center gap-1"
+              >
+                <span>Have more technical questions? View complete FAQ directory</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
-        </div>
-      </footer>
+        </section>
+
+        {/* ================= 9. JOIN THE PILOT FORM ================= */}
+        <section id="join-pilot" className="py-16 sm:py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+            <div className="text-center max-w-2xl mx-auto space-y-2">
+              <Badge variant="outline" className="text-xs uppercase tracking-wider text-harvest-amber border-harvest-amber/40 font-display">
+                Research Pilot Cohort
+              </Badge>
+              <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight text-foreground">
+                Participate in the Butuan Research Pilot Cohort
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Whether you operate a commercial kitchen or cultivate agricultural plots in Agusan del Norte, register below to participate in our direct procurement pilot study.
+              </p>
+            </div>
+
+            <LeadCaptureForm />
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <PublicFooter />
     </div>
   );
 }

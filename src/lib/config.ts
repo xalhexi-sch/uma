@@ -1,7 +1,7 @@
 export const APP_CONFIG = {
   name: 'UMA',
-  fullName: 'UMA B2B Agricultural Marketplace',
-  description: 'Scheduled farm produce directly from Butuan-area farmers to commercial kitchens.',
+  fullName: 'UMA Agricultural Logistics Research Proposal & Pilot Platform',
+  description: 'Proposed B2B agricultural direct-procurement model and pilot platform connecting Butuan-area farmers with commercial kitchens.',
   location: {
     city: 'Butuan City',
     province: 'Agusan del Norte',
@@ -15,12 +15,16 @@ export const APP_CONFIG = {
     minute: 0,
     readableTime: '8:00 PM',
   },
+  scheduling: {
+    batchModel: 'Forward-Scheduled Morning Batch Fulfillment',
+    windowLabel: 'Morning 6:00 AM – 9:00 AM',
+  },
   economics: {
-    commissionRate: 0.08, // 8% commission on produce subtotal
+    commissionRate: 0.08, // 8% platform fee
     deliveryFeeOneToOneCentavos: 15000, // ₱150.00
     deliveryFeePooledCentavos: 10000,   // ₱100.00
     minOrderDefaultKg: 5,
-    firstOrderDeliveryCredit: true,     // First-order waived delivery fee flag
+    firstOrderDeliveryCredit: false,    // No commercial promotional vouchers in research proposal
   },
   deliveryWindows: [
     { id: 'MORNING_6_9', label: 'Morning (6:00 AM – 9:00 AM)', startHour: 6, endHour: 9 },

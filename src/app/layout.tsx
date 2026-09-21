@@ -1,16 +1,36 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
-import { Geist } from "next/font/google";
+import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-display',
+  weight: ['500', '600', '700', '800', '900'],
+  display: 'swap',
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  weight: ['400', '500', '600', '700', '800'],
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
-  title: "UMA | Farm-Fresh Produce, Scheduled to Your Kitchen",
-  description: "B2B agricultural marketplace connecting Butuan-area farmers directly with carinderias, canteens, and restaurants. Verified harvest-to-order fulfillment.",
-  keywords: ["B2B produce", "farm to kitchen", "Butuan City", "carinderia supplier", "farm direct", "UMA"],
+  title: "UMA | Agricultural Logistics Research Proposal & Pilot Platform",
+  description:
+    "Proposed B2B agricultural direct-procurement system connecting Butuan-area farmers directly with commercial kitchens. Research framework for forward-scheduled harvest batching.",
+  keywords: [
+    "B2B agriculture",
+    "agricultural logistics",
+    "supply chain research",
+    "Butuan City",
+    "farm to kitchen",
+    "UMA",
+  ],
   icons: {
     icon: [
       { url: '/uma-favicon.png', type: 'image/png' },
@@ -27,13 +47,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={cn(outfit.variable, plusJakarta.variable, "font-sans")}
+      suppressHydrationWarning
+    >
       <head>
         <link rel="icon" href="/uma-favicon.png" type="image/png" sizes="any" />
         <link rel="shortcut icon" href="/uma-favicon.png" type="image/png" />
       </head>
       <body
-        className="min-h-screen antialiased bg-background text-foreground selection:bg-brand-green/30"
+        className="min-h-screen antialiased bg-background text-foreground selection:bg-brand-forest/20 font-sans"
         suppressHydrationWarning
       >
         <a
@@ -50,4 +75,3 @@ export default function RootLayout({
     </html>
   );
 }
-

@@ -8,7 +8,6 @@ import { Menu, X, ArrowRight, LayoutDashboard, LogIn } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import { cn } from '@/lib/utils';
-import { APP_CONFIG } from '@/lib/config';
 
 interface PublicHeaderProps {
   user?: {
@@ -32,13 +31,6 @@ export function PublicHeader({ user }: PublicHeaderProps) {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/80 bg-background/95 backdrop-blur-md transition-colors">
-      {/* Announcement Bar */}
-      {APP_CONFIG.economics.firstOrderDeliveryCredit && (
-        <div className="bg-brand-forest text-white text-xs py-1.5 px-4 text-center font-medium tracking-wide">
-          <span>First order: delivery fee waived for verified commercial kitchens.</span>
-        </div>
-      )}
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 focus:outline-none focus:ring-2 focus:ring-ring rounded-md">
@@ -51,8 +43,11 @@ export function PublicHeader({ user }: PublicHeaderProps) {
               priority
             />
           </div>
-          <span className="text-xl font-black tracking-tight text-brand-forest dark:text-brand-green">
+          <span className="text-xl font-display font-black tracking-tight text-brand-forest dark:text-brand-green">
             UMA
+          </span>
+          <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-brand-forest/10 dark:bg-brand-forest/20 text-brand-forest dark:text-brand-green border border-brand-forest/20">
+            Research Pilot
           </span>
         </Link>
 

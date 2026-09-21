@@ -15,18 +15,18 @@ export function PublicFooter() {
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-around gap-6 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-brand-forest dark:text-brand-green" />
-            <span className="font-semibold text-foreground">Butuan City Pilot Area</span>
+            <span className="font-semibold text-foreground">Butuan City Pilot Study</span>
             <span>· Agusan del Norte</span>
           </div>
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-amber-500" />
-            <span className="font-semibold text-foreground">8:00 PM Manila Cutoff</span>
-            <span>· Next-day scheduled fulfillment</span>
+            <span className="font-semibold text-foreground">Forward-Scheduled Batches</span>
+            <span>· Harvest-to-order morning prep</span>
           </div>
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="font-semibold text-foreground">Photo-Verified Proof</span>
-            <span>· On every drop-off</span>
+            <span className="font-semibold text-foreground">Photo Custody Chain</span>
+            <span>· Farmgate to kitchen verification</span>
           </div>
         </div>
       </div>
@@ -44,12 +44,12 @@ export function PublicFooter() {
                   className="object-contain"
                 />
               </div>
-              <span className="text-xl font-black tracking-tight text-brand-forest dark:text-brand-green">
+              <span className="text-xl font-display font-black tracking-tight text-brand-forest dark:text-brand-green">
                 UMA
               </span>
             </Link>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              B2B agricultural marketplace connecting Butuan-area farmers directly with commercial kitchens. Transparent 8% fee, scheduled fulfillment, and photo proof.
+              Agricultural logistics research proposal and pilot platform connecting Butuan-area farmers with commercial kitchens. 8% economic feasibility model and photo-verified custody chain.
             </p>
             <div className="pt-1">
               <ThemeToggle variant="outline" />
@@ -137,10 +137,10 @@ export function PublicFooter() {
               </li>
               <li>
                 <span className="text-[11px] text-muted-foreground/80 block pt-1">
-                  Commission: {APP_CONFIG.economics.commissionRate * 100}% of harvest value
+                  Economic Model: {APP_CONFIG.economics.commissionRate * 100}% platform coordination
                 </span>
                 <span className="text-[11px] text-muted-foreground/80 block">
-                  Cutoff: {APP_CONFIG.cutoff.readableTime} ({APP_CONFIG.timezone})
+                  Batch Fulfillment: Morning 6:00 – 9:00 AM Window
                 </span>
               </li>
             </ul>
